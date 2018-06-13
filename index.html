@@ -1,0 +1,207 @@
+<html>
+<head>
+	<meta charset="utf-8">
+	<style>
+		.bingo-table {
+		}
+		.bingo-table td {
+			border: solid;
+			border-width: thin;
+			width: 89;
+			height: 89;
+		}
+		.bingo-table textarea {
+			font-family: sans-serif;
+			width: inherit;
+			height: inherit;
+			resize: none;
+		}
+		.bingo-textarea {
+			background: inherit;
+			border: none;
+			cursor: pointer;
+			caret-color: transparent;
+		}
+		.bingo-textarea-focused {
+			background: white;
+			cursor: text;
+		}
+		.bingo-tr {
+		}
+		.bingo-td-unactive {
+			background-color: inherit;
+			cursor: pointer;
+		}
+		.bingo-td-unactive:hover {
+			background-color: #faF5f1;
+		}
+		.bingo-td-active {
+			background-color: #00ff00;
+		}
+		.bingo-td-active:hover {
+			background-color: #00ee00;
+		}
+		.bingo-td-completed {
+			background-color: #ffff00;
+		}
+		.bingo-td-completed:hover {
+			background-color: #ffee00;
+		}
+	</style>
+	<script>
+		function defaultCellData() {
+			return {
+				active: false,
+				completed: false,
+				text: "",
+			};
+		}
+		function makeBingoTable(data = null) {
+			if(data == null) {
+				data = {
+					size: 5,
+					content: [],
+				}
+				for(var y = 0; y < data.size; y++) {
+					let row = [];
+					for(var x = 0; x < data.size; x++) {
+						row.push(defaultCellData());
+					}
+					data.content.push(row);
+				}
+			}
+			let cells = [];
+			let table = document.createElement('table');
+			table.className = 'bingo-table';
+			for(var y = 0; y < data.size; y++) {
+				let row = table.insertRow(y);
+				for(var x = 0; x < data.size; x++) {
+					let cell = row.insertCell(x);
+					cell.bingoData = data.content[y][x];
+					if(cell.bingoData.completed) {
+						cell.className = 'bingo-td-completed';
+					} else if(cell.bingoData.active) {
+						cell.className = 'bingo-td-active';
+					} else {
+						cell.className = 'bingo-td-unactive';
+					}
+					textarea = document.createElement('textarea');
+					textarea.className = 'bingo-textarea';
+					textarea.readOnly = true;
+					textarea.appendChild(
+						document.createTextNode(cell.bingoData.text));
+					cell.textarea = textarea;
+					cell.appendChild(textarea);
+					cells.push(cell);
+				}
+			}
+			return {
+				table: table,
+				cells: cells,
+				data: data,
+			};
+		}
+		window.onload = () => {
+			let bingoTable = makeBingoTable(
+				JSON.parse(localStorage.bingoData));
+			console.log(localStorage);
+			document
+				.getElementById('bingo-board')
+				.appendChild(bingoTable.table);
+			let controller = {
+				qualifiers: (() => {
+					let rows = bingoTable.table.rows;
+					let qs = [];
+					let columns = [];
+					for(var i = 0; i < rows.length; i++) {
+						columns.push([]);
+					}
+					let diagonals = [[], []];
+					var dc = 0;
+					for(const row of bingoTable.table.rows) {
+						qs.push([].slice.call(row.children));
+						for(var i = 0; i < row.children.length; i++) {
+							columns[i].push(row.children[i]);
+						}
+						diagonals[0].push(row.children[dc]);
+						diagonals[1].push(row.children[row.children.length - dc - 1]);
+						dc++;
+					}
+					return qs.concat(columns).concat(diagonals);
+				})(),
+				completed: () => {
+					return controller.qualifiers.filter((qs) => {
+						return qs.reduce((cur, acc) => {
+							return cur && acc.bingoData.active;
+						}, true);
+					})
+				},
+				didClick: false,
+				hasFocus: false,
+			};
+			for(const cell of bingoTable.cells) {
+				cell.onmousedown = () => {
+					if(controller.hasFocus) {
+						return;
+					}
+					controller.didClick = true;
+					cell.timer = setTimeout(() => {
+						controller.didClick = false;
+						cell.textarea.readOnly = false;
+						cell.textarea.className = 'bingo-textarea-focused';
+						cell.textarea.focus();
+						controller.hasFocus = true;
+					}, 800);
+				}
+				cell.onmouseup = () => {
+					if(controller.hasFocus ||
+						controller.didClick == false ||
+						cell.textarea.readOnly == false) {
+							return;
+					}
+					clearTimeout(cell.timer);
+					if(cell.bingoData.active) {
+						for(const es of controller.completed()) {
+							if(es.indexOf(cell) < 0) {
+								continue;
+							}
+							for(const e of es) {
+								e.bingoData.completed = false;
+								e.className = 'bingo-td-active';
+							}
+						}
+						cell.bingoData.active = false;
+						cell.className = 'bingo-td-unactive';
+					} else {
+						cell.bingoData.active = true;
+						cell.className = 'bingo-td-active';
+					}
+					for(const es of controller.completed()) {
+						var delay = 0;
+						for(const e of es) {
+							if(e.bingoData.completed) {
+								continue;
+							}
+							setTimeout(() => {
+								e.className = 'bingo-td-completed';
+								e.bingoData.completed = true;
+							}, delay);
+							delay += 89;
+						}
+					}
+				};
+				cell.textarea.onblur = () => {
+					cell.textarea.readOnly = true;
+					cell.textarea.className = 'bingo-textarea';
+					controller.hasFocus = false;
+					cell.bingoData.text = cell.textarea.value;
+					localStorage.setItem('bingoData', JSON.stringify(bingoTable.data));
+				};
+			}
+		}
+	</script>
+</head>
+<body>
+	<span id="bingo-board"></span>
+</body>
+</html>
