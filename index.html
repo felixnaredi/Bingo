@@ -103,7 +103,9 @@
 		}
 		window.onload = () => {
 			let bingoTable = makeBingoTable(
-				JSON.parse(localStorage.bingoData));
+				localStorage.bingoData == null ?
+					null :
+					JSON.parse(localStorage.bingoData));
 			console.log(localStorage);
 			document
 				.getElementById('bingo-board')
