@@ -2,208 +2,381 @@
 <head>
 	<meta charset="utf-8">
 	<style>
-		.bingo-table {
-		}
-		.bingo-table td {
-			border: solid;
-			border-width: thin;
-			width: 89;
-			height: 89;
-		}
-		.bingo-table textarea {
-			font-family: sans-serif;
-			width: inherit;
-			height: inherit;
-			resize: none;
-		}
-		.bingo-textarea {
-			background: inherit;
-			border: none;
-			cursor: pointer;
-			caret-color: transparent;
-		}
-		.bingo-textarea-focused {
-			background: white;
-			cursor: text;
-		}
-		.bingo-tr {
-		}
-		.bingo-td-unactive {
-			background-color: inherit;
-			cursor: pointer;
-		}
-		.bingo-td-unactive:hover {
-			background-color: #faF5f1;
-		}
-		.bingo-td-active {
-			background-color: #00ff00;
-		}
-		.bingo-td-active:hover {
-			background-color: #00ee00;
-		}
-		.bingo-td-completed {
-			background-color: #ffff00;
-		}
-		.bingo-td-completed:hover {
-			background-color: #ffee00;
-		}
+	table#bingo-table {
+		border-collapse: collapse;
+		cursor: pointer;
+	}
+	#bingo-table td {
+		border: solid thin;
+		width: 6em;
+		height: 6em;
+		cursor: pointer;
+	}
+	#bingo-table.null-board {
+		background-color: #c0c0c0;
+		margin-left: auto;
+		margin-right: auto;
+		padding: 1em;
+		width: 8em;
+		text-align: center;
+	}
+	#bingo-table .clear-cell {
+		background-color: white;
+	}
+	#bingo-table .clear-cell:hover {
+		background-color: #fdfafa;
+	}
+	#bingo-table .check-cell {
+		background-color: cyan;
+	}
+	#bingo-table .bingo-cell {
+		background-color: yellow;
+	}
+	#bingo-table textarea {
+		background-color: inherit;
+		border: none;
+		resize: none;
+		width: inherit;
+		height: inherit;
+		font-family: sans-serif;
+		font-size: 0.9em;
+		cursor: inherit;
+	}
+	#bingo-table caption {
+		cursor: default;
+	}
+	#bingo-table .caption-text {
+		color: black;
+		font-size: 24px;
+		text-align: center;
+		padding-top: 12px;
+		padding-bottom: 12px;
+		border: none;
+	}
+	#bingo-table .caption-text:hover {
+		background-color: #fdfafa;
+		color: #10a0f0;
+	}
+	#bingo-table .edit-mode-off {
+		cursor: inherit;
+		caret-color: transparent;
+	}
+	#bingo-table .edit-mode-on {
+		background-color: white;
+		cursor: text;
+	}
+	#side-menu {
+		float: left;
+		margin-right: 2em;
+	}
+	#side-menu table {
+		border-collapse: collapse;
+		margin-right: 2em;
+	}
+	#side-menu tr:hover {
+		background-color: #fdfafa;
+	}
+	#side-menu td {
+		border-top: solid thin;
+		border-bottom: solid thin;
+		cursor: pointer;
+		padding: 0.25em;
+	}
+	#side-menu td:first-child {
+		border-left: solid thin;
+	}
+	#side-menu td:last-child {
+		border-right: solid thin;
+	}
+	#side-menu .edit-mode-off input {
+		cursor: inherit;
+		caret-color: transparent;
+		background-color: inherit;
+		border: none;
+	}
+	#side-menu .edit-mode-on input {
+		cursor: text;
+		background-color: #fdfafa;
+		color: #10a0f0;
+		border: solid thin silver;
+	}
+	#side-menu button {
+		cursor: pointer;
+	}
+	#side-menu .edit-button {
+	}
+	#side-menu .remove-button {
+		background-color: red;
+		color: white;
+		border: solid;
+		border-color: #ee0000;
+		padding-left: 0.5em;
+		padding-right: 0.5em;
+	}
 	</style>
+	<script src="bingo.js"></script>
 	<script>
-		function defaultCellData() {
-			return {
-				active: false,
-				completed: false,
-				text: "",
-			};
+
+	function cellClass(cell) {
+		if(cell.data.bingo > 0) {
+			return 'bingo-cell';
 		}
-		function makeBingoTable(data = null) {
-			if(data == null) {
-				data = {
-					size: 5,
-					content: [],
-				}
-				for(var y = 0; y < data.size; y++) {
-					let row = [];
-					for(var x = 0; x < data.size; x++) {
-						row.push(defaultCellData());
-					}
-					data.content.push(row);
-				}
-			}
-			let cells = [];
-			let table = document.createElement('table');
-			table.className = 'bingo-table';
-			for(var y = 0; y < data.size; y++) {
-				let row = table.insertRow(y);
-				for(var x = 0; x < data.size; x++) {
-					let cell = row.insertCell(x);
-					cell.bingoData = data.content[y][x];
-					if(cell.bingoData.completed) {
-						cell.className = 'bingo-td-completed';
-					} else if(cell.bingoData.active) {
-						cell.className = 'bingo-td-active';
-					} else {
-						cell.className = 'bingo-td-unactive';
-					}
-					textarea = document.createElement('textarea');
-					textarea.className = 'bingo-textarea';
-					textarea.readOnly = true;
-					textarea.appendChild(
-						document.createTextNode(cell.bingoData.text));
-					cell.textarea = textarea;
-					cell.appendChild(textarea);
-					cells.push(cell);
-				}
-			}
-			return {
-				table: table,
-				cells: cells,
-				data: data,
-			};
+		return cell.data.checked ?
+			'check-cell' :
+			'clear-cell';
+	}
+
+	const writeBoardToLocalStorage = (object, encoding) => {
+		localStorage.setItem(object.hash, encoding);
+		let json = localStorage.getItem('boardKeys');
+		if(json == null) {
+			localStorage.setItem(
+				'boardKeys', JSON.stringify([object.hash]));
+			return;
 		}
-		window.onload = () => {
-			let bingoTable = makeBingoTable(
-				localStorage.bingoData == null ?
-					null :
-					JSON.parse(localStorage.bingoData));
-			console.log(localStorage);
-			document
-				.getElementById('bingo-board')
-				.appendChild(bingoTable.table);
-			let controller = {
-				qualifiers: (() => {
-					let rows = bingoTable.table.rows;
-					let qs = [];
-					let columns = [];
-					for(var i = 0; i < rows.length; i++) {
-						columns.push([]);
-					}
-					let diagonals = [[], []];
-					var dc = 0;
-					for(const row of bingoTable.table.rows) {
-						qs.push([].slice.call(row.children));
-						for(var i = 0; i < row.children.length; i++) {
-							columns[i].push(row.children[i]);
-						}
-						diagonals[0].push(row.children[dc]);
-						diagonals[1].push(row.children[row.children.length - dc - 1]);
-						dc++;
-					}
-					return qs.concat(columns).concat(diagonals);
-				})(),
-				completed: () => {
-					return controller.qualifiers.filter((qs) => {
-						return qs.reduce((cur, acc) => {
-							return cur && acc.bingoData.active;
-						}, true);
-					})
-				},
-				didClick: false,
-				hasFocus: false,
-			};
-			for(const cell of bingoTable.cells) {
-				cell.onmousedown = () => {
-					if(controller.hasFocus) {
-						return;
-					}
-					controller.didClick = true;
-					cell.timer = setTimeout(() => {
-						controller.didClick = false;
-						cell.textarea.readOnly = false;
-						cell.textarea.className = 'bingo-textarea-focused';
-						cell.textarea.focus();
-						controller.hasFocus = true;
-					}, 800);
+		let keys = JSON.parse(json);
+		if(keys.indexOf(object.hash) > -1) {
+			return;
+		}
+		keys.push(object.hash);
+		localStorage.setItem('boardKeys', JSON.stringify(keys));
+	};
+
+	function setCurrentBoard(board) {
+		let bingoTableSpan = document.getElementById('bingo-table-span');
+		let currentBoardTable = document.getElementById('bingo-table');
+		if(currentBoardTable) {
+			currentBoardTable.remove();
+		}
+		if(board == null) {
+			let p = document.createElement('p');
+			p.className = 'null-board';
+			p.id = 'bingo-table';
+			p.appendChild(document.createTextNode("Sorry, no boards available"));
+			bingoTableSpan.appendChild(p);
+			localStorage.setItem('currentBoardKey', 0);
+			return;
+		}
+
+		currentBoardTable = BoardTable(board, {
+			tableDidAppendCell: (cell) => {
+				cell.className = cellClass(cell);
+				cell.textarea.className = 'edit-mode-off';
+			},
+			didCreateTable: (table) => {
+				table.model.captionInput.className = 'caption-text';
+				board.writeToLocalStorage();
+			},
+			cellDidEnterEditMode: (cell) => {
+				cell.textarea.className = 'edit-mode-on';
+			},
+			cellDidExitEditMode: (cell) => {
+				cell.textarea.className = 'edit-mode-off';
+				board.writeToLocalStorage();
+			},
+			cellDidToggle: () => {
+				currentBoardTable.model.cells
+					.forEach((cell) => {
+						cell.className = cellClass(cell);
+					});
+				board.writeToLocalStorage();
+			},
+		});
+		currentBoardTable.id = 'bingo-table';
+		bingoTableSpan.appendChild(currentBoardTable);
+
+		localStorage.setItem('currentBoardKey', board.hash);
+	}
+
+	window.onload = () => {
+		// console.log(localStorage);
+
+		if(localStorage.length < 1) {
+			let board = Board({writeToLocalStorage: writeBoardToLocalStorage});
+			board.writeToLocalStorage();
+			localStorage.setItem('currentBoardKey', board.hash);
+		}
+
+		let sideMenu = BoardMenu({
+			didSelectMenuItem: (item) => {
+				if(item == null) {
+					setCurrentBoard(null);
+				} else {
+					setCurrentBoard(item.model);
 				}
-				cell.onmouseup = () => {
-					if(controller.hasFocus ||
-						controller.didClick == false ||
-						cell.textarea.readOnly == false) {
-							return;
-					}
-					clearTimeout(cell.timer);
-					if(cell.bingoData.active) {
-						for(const es of controller.completed()) {
-							if(es.indexOf(cell) < 0) {
-								continue;
-							}
-							for(const e of es) {
-								e.bingoData.completed = false;
-								e.className = 'bingo-td-active';
-							}
-						}
-						cell.bingoData.active = false;
-						cell.className = 'bingo-td-unactive';
-					} else {
-						cell.bingoData.active = true;
-						cell.className = 'bingo-td-active';
-					}
-					for(const es of controller.completed()) {
-						var delay = 0;
-						for(const e of es) {
-							if(e.bingoData.completed) {
-								continue;
-							}
-							setTimeout(() => {
-								e.className = 'bingo-td-completed';
-								e.bingoData.completed = true;
-							}, delay);
-							delay += 89;
-						}
-					}
-				};
-				cell.textarea.onblur = () => {
-					cell.textarea.readOnly = true;
-					cell.textarea.className = 'bingo-textarea';
-					controller.hasFocus = false;
-					cell.bingoData.text = cell.textarea.value;
-					localStorage.setItem('bingoData', JSON.stringify(bingoTable.data));
-				};
+			},
+			willRemoveMenuItem: (item) => {
+				localStorage.setItem(
+					'boardKeys',
+					JSON.stringify(JSON.parse(
+						localStorage.getItem('boardKeys'))
+							.filter((key) => {
+								return key != item.model.hash;
+							})));
+				console.log(localStorage);
+				localStorage.removeItem(item.model.hash);
+				console.log(localStorage);
+			},
+			classNames: {
+				editModeOff: 'edit-mode-off',
+				editModeOn: 'edit-mode-on',
+				removeButton: 'remove-button',
+			},
+		});
+
+		document.getElementById('side-menu').appendChild(sideMenu);
+		JSON.parse(localStorage.getItem('boardKeys')).forEach((key) => {
+			sideMenu.insertMenuItem(
+				Board(Object.assign(
+					JSON.parse(localStorage.getItem(key)),
+					{writeToLocalStorage: writeBoardToLocalStorage})));
+		});
+
+		document.getElementById('new-board-button').onclick = () => {
+			let board = Board({
+				writeToLocalStorage: writeBoardToLocalStorage,
+			});
+			let item = sideMenu.insertMenuItem(board);
+			sideMenu.selectMenuItem(item);
+			console.log(item);
+			setCurrentBoard(board);
+		};
+
+		let item = (Object.values(sideMenu.rows)
+			.find((item) => item.model.hash == localStorage.currentBoardKey));
+		if(item == null) {
+			setCurrentBoard(null);
+		} else {
+			setCurrentBoard(item.model);
+			sideMenu.selectMenuItem(item);
+		}
+
+		/*
+		document.getElementById('import-json').onclick = () => {
+			let errorElement = document.getElementById('import-json-parse-error');
+			try {
+				let board = Board(Object.assign(
+					JSON.parse(document.getElementById('import-json-input').value),
+					{writeToLocalStorage: writeBoardToLocalStorage}));
+				errorElement.innerText = "";
+				sideMenu.selectMenuItem(sideMenu.insertMenuItem(board));
+				setCurrentBoard(board);
+			} catch (e) {
+				errorElement.appendChild(
+					document.createTextNode(e.message));
 			}
 		}
+		*/
+	}
+
 	</script>
 </head>
 <body>
-	<span id="bingo-board"></span>
+	<div style="clear: both; overflow: auto;">
+		<div id="side-menu">
+			<p id="new-board-button" class="pseudo-button">Add Board</p>
+		</div>
+		<span id="bingo-table-span"></span>
+	</div>
+
+	<style>
+		footer {
+			background-color: black;
+			margin-top: 2em;
+			padding: 1em;
+		}
+		p.pseudo-button {
+			padding: 3px;
+			cursor: pointer;
+			margin: 0;
+			font-family: monospace;
+		}
+		#new-board-button {
+			background-color: yellow;
+			color: black;
+			text-align: center;
+			font-family: sans-serif;
+		}
+		#new-board-button:hover {
+			background-color: #cdff00;
+		}
+		#clear-local-storage {
+			background-color: red;
+			color: yellow;
+		}
+		#clear-local-storage:hover {
+			background-color: #ff3f00;
+		}
+		#export-json {
+			background-color: #0a0aee;
+			color: #0aee0a;
+		}
+		#export-json:hover {
+			background-color: #880aee;
+		}
+		#export-json-output {
+			font-family: monospace;
+			background-color: #eaeaea;
+			border: solid thin #aaaaaa;
+			cursor: text;
+			padding: 1em;
+		}
+		#import-json {
+			background-color: #0aee0a;
+			color: #0a0aee;
+		}
+		#import-json:hover {
+			background-color: #88ee0a;
+		}
+		#import-json-input {
+			width: inherit;
+			resize: none;
+			font-family: monospace;
+		}
+		#import-json-parse-error {
+			color: red;
+			font-family: monospace;
+		}
+	</style>
+	<footer>
+		<div>
+			<p id="export-json" class="pseudo-button">Export JSON</p>
+			<p id="export-json-output"></p>
+			<!--
+			<p id="import-json" class="pseudo-button">Import JSON</p>
+			<textarea id="import-json-input" rows="8" cols="55"></textarea>
+			<p id="import-json-parse-error"></p>
+			-->
+			<hr>
+			<p id="clear-local-storage" class="pseudo-button">Clear localStorage</p>
+		</div>
+		<script>
+
+		document.getElementById('clear-local-storage').onclick = () => {
+			localStorage.clear();
+		};
+
+		document.getElementById('export-json-output').style.display = 'none';
+		document.getElementById('export-json').onclick = () => {
+			let bingoTable = document.getElementById('bingo-table');
+			if(bingoTable.model == null) {
+				return;
+			}
+			let output = document.getElementById('export-json-output');
+			if(output.style.display == 'none') {
+				output.style.display = 'block';
+			} else {
+				output.style.display = 'none';
+				return;
+			}
+			while(output.hasChildNodes()) {
+				output.removeChild(output.lastChild);
+			}
+			output.appendChild(document.createTextNode(
+				bingoTable.model.board.encode.json()));
+		}
+
+		</script>
+	</footer>
 </body>
 </html>
